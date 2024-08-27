@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.situ.ws.mapper.RentalsMapper">
+
+    <!-- 通用查询映射结果 -->
+    <resultMap id="BaseResultMap" type="com.situ.ws.bean.entries.Rentals">
+        <id column="id" property="id" />
+        <result column="order_id" property="orderId" />
+        <result column="rent_time" property="rentTime" />
+        <result column="return_time" property="returnTime" />
+        <result column="total_fee" property="totalFee" />
+        <result column="created_at" property="createdAt" />
+        <result column="updated_at" property="updatedAt" />
+        <result column="is_del" property="isDel"/>
+        <result column="pre_return_time" property="preReturnTime"/>
+    </resultMap>
+
+<!--    插入-->
+    <insert id="insert">
+        insert into rentals (order_id, rent_time, pre_return_time, total_fee, created_at, updated_at)
+        values (#{rentals.orderId},#{rentals.rentTime},#{rentals.preReturnTime},#{rentals.totalFee},
+                #{rentals.createdAt},#{rentals.updatedAt});
+    </insert>
+
+<!--    修改-->
+    <update id="update" parameterType="com.situ.ws.bean.entries.Rentals">
+        update rentals
+        <set>
+            <if test="rentals.rentTime != null">
+                `rent_time` = #{rentals.rentTime},
+            </if>
+            <if test="rentals.returnTime != null">
+                `return_time` = #{rentals.returnTime},
+            </if>
+            <if test="rentals.preReturnTime != null">
+                `pre_return_time` = #{rentals.preReturnTime},
+            </if>
+            <if test="rentals.totalFee != null">
+                `total_fee` = #{rentals.totalFee},
+            </if>
+            <if test="rentals.createdAt != null">
+                `created_at` = #{rentals.createdAt},
+            </if>
+            <if test="rentals.updatedAt != null">
+                `updated_at` = #{rentals.updatedAt},
+            </if>
+        </set>
+        <where>
+            id = #{rentals.id} and is_del = 0
+        </where>
+    </update>
+
+<!--    逻辑删除-->
+    <update id="logicalDeletion" parameterType="long">
+        update rentals
+        set is_del = 1
+        where id in
+        <foreach collection="ids" item="id" open="(" close=")" separator=",">
+            #{id}
+        </foreach>
+        and `is_del` = 0
+    </update>
+
+<!--    恢复数据-->
+    <update id="restoreData" parameterType="long">
+        update rentals
+        set is_del = 0
+        where id in
+        <foreach collection="ids" item="id" open="(" close=")" separator=",">
+            #{id}
+        </foreach>
+        and `is_del` = 1
+    </update>
+
+    <!--    真实删除  -->
+    <delete id="deleteByIds" parameterType="long">
+        delete from rentals where
+        id in
+        <foreach collection="ids" item="id" open="(" close=")" separator=",">
+            #{id}
+        </foreach>
+    </delete>
+
+    <!--    分页查询-->
+    <select id="selectPage" resultMap="BaseResultMap">
+        select *
+        from rentals
+        <include refid="pageWhere"/>
+        <if test="page.start != null and page.start >= 0">
+            limit #{page.start},#{page.size}
+        </if>
+    </select>
+
+<!--    获取总数-->
+    <!--    总条数-->
+    <select id="getCount" resultType="int">
+        select count(*)
+        from rentals
+        <include refid="pageWhere"/>
+    </select>
+
+
+    <select id="getRentalsByOrderId" resultMap="BaseResultMap">
+        select * from rentals where order_id
+            in (select orders.id from orders where orders.user_id = #{orders.userId} and orders.vehicle_id = #{orders.vehicleId})
+                and rentals.return_time is NULL and  `is_del` = 0
+    </select>
+
+    <sql id="pageWhere">
+        <where>
+            <if test="rentals.isDel != null">
+                and `is_del` =  #{rentals.isDel}
+            </if>
+            <if test="rentals.orderId != null and rentals.orderId != ''">
+                <bind name="likeOrderId" value="'%' + rentals.orderId + '%'"/>
+                and `order_id` like #{likeOrderId}
+            </if>
+            <if test="rentals.rentTime != null">
+                and `rent_time` &gt;= #{rentals.rentTime}
+            </if>
+            <if test="rentals.returnTime != null">
+                and `return_time` &lt;=  #{rentals.returnTime}
+            </if>
+            <if test="rentals.createdAt != null">
+                and `created_at` &gt;= #{rentals.createdAt}
+            </if>
+            <if test="rentals.updatedAt != null">
+                and `updated_at` &lt;= #{rentals.updatedAt}
+            </if>
+        </where>
+    </sql>
+
+
+</mapper>

@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.situ.ws.mapper.BrandMapper">
+
+    <!-- 通用查询映射结果 -->
+    <resultMap id="BaseResultMap" type="com.situ.ws.bean.entries.Brand">
+        <id column="id" property="id" />
+        <result column="name" property="name" />
+        <result column="country" property="country" />
+        <result column="founded_year" property="foundedYear" />
+        <result column="is_del" property="isDel" />
+        <result column="url" property="url" />
+        <result column="update_time" property="updateTime" />
+    </resultMap>
+
+
+    <insert id="insert">
+        insert into brand (name, country, founded_year, url, update_time)
+        values (#{brand.name},#{brand.country},#{brand.foundedYear},#{brand.url},#{brand.updateTime});
+    </insert>
+
+
+    <update id="update">
+        update brand
+        <set>
+            <if test="brand.name != null and brand.name != ''">
+                `name` = #{brand.name},
+            </if>
+            <if test="brand.country != null and brand.country != ''">
+                `country` = #{brand.country},
+            </if>
+            <if test="brand.url != null and brand.url != ''">
+                `url` = #{brand.url},
+            </if>
+            <if test="brand.updateTime != null">
+                `update_time` = #{brand.updateTime},
+            </if>
+        </set>
+        where `id` = #{brand.id}
+    </update>
+
+
+    <!--    逻辑删除-->
+    <update id="logicalDeletion" parameterType="long">
+        update brand
+        set is_del = 1
+        where id in
+        <foreach collection="ids" item="id" open="(" close=")" separator=",">
+            #{id}
+        </foreach>
+        and `is_del` = 0
+    </update>
+
+
+    <select id="selectAllByName" resultMap="BaseResultMap">
+        select *
+        from brand
+        <where>
+            <if test="name != null and name != ''">
+                <bind name="likeName" value="'%' + name + '%'"/>
+            </if>
+            `name` like #{likeName}
+        </where>
+    </select>
+    <select id="getById" resultType="com.situ.ws.bean.entries.Brand">
+        select brand.id,brand.name
+        from brand where id = #{id};
+    </select>
+
+
+    <select id="getListByIds" resultMap="BaseResultMap">
+        select *
+        from lease.brand
+        <where>
+            id in
+            <foreach collection="ids" item="id" open="(" close=")" separator=",">
+                #{id}
+            </foreach>
+        </where>
+    </select>
+    
+    
+    <select id="selectPage" resultMap="BaseResultMap">
+        select *
+        from brand
+        <include refid="where"/>
+        <if test="page.start != null and page.start >= 0">
+            limit #{page.start},#{page.size}
+        </if>
+    </select>
+
+
+
+    <select id="getCount" resultType="java.lang.Integer">
+        select count(*)
+        from brand
+        <include refid="where"/>
+    </select>
+
+    <sql id="where">
+        <where>
+            is_del = 0
+            <if test="brand.name != null and brand.name != ''">
+                <bind name="likeName" value="'%' + brand.name + '%'"/>
+                And `name` like #{likeName}
+            </if>
+            <if test="brand.country != null and brand.country != ''">
+                <bind name="likeCountry" value="'%' + brand.country + '%'"/>
+                And `country` like #{likeCountry}
+            </if>
+            <if test="brand.foundedYear != null">
+                And `founded_year` &gt;= #{brand.foundedYear}
+            </if>
+            <if test="brand.updateTime != null">
+                And `update_time` &lt;=  #{brand.updateTime}
+            </if>
+        </where>
+    </sql>
+
+</mapper>

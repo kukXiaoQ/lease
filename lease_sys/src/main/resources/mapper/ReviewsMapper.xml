@@ -1,0 +1,152 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.situ.ws.mapper.ReviewsMapper">
+
+    <!-- 通用查询映射结果 -->
+    <resultMap id="BaseResultMap" type="com.situ.ws.bean.entries.Reviews">
+        <id column="id" property="id" />
+        <result column="rating" property="rating" />
+        <result column="comment" property="comment" />
+        <result column="created_at" property="createdAt" />
+        <result column="updated_at" property="updatedAt" />
+        <result column="users_id" property="userId"/>
+        <result column="is_del" property="isDel"/>
+    </resultMap>
+
+<!--    删除-->
+    <delete id="deleteByIds" parameterType="long">
+        delete from lease.reviews where
+        users_id in
+        <foreach collection="ids" item="id" open="(" close=")" separator=",">
+            #{id}
+        </foreach>
+    </delete>
+
+<!--    根据用户ID，查询信誉-->
+    <select id="selectById" resultType="com.situ.ws.bean.entries.Reviews">
+        select *
+        from reviews where users_id = #{userId};
+    </select>
+
+    <resultMap id="reviewsDtoMap" type="com.situ.ws.bean.dto.ReviewsDto">
+        <id property="id" column="id"/>
+        <result property="username" column="username"/>
+        <result property="nickname" column="nickname"/>
+        <result property="phone" column="phone"/>
+        <result property="updateAt" column="update_at"/>
+        <result property="rating" column="rating"/>
+        <result property="status" column="comment"/>
+    </resultMap>
+
+    <select id="selectPageByNewWhere" resultMap="reviewsDtoMap">
+        select reviews.id,users.username,users.nickname,users.phone,reviews.update_at,reviews.rating,reviews.`comment` from reviews
+            LEFT JOIN users on users.id = reviews.users_id
+        <include refid="where"/>
+        <if test="page.start != null and page.start >= 0">
+            limit #{page.start},#{page.size}
+        </if>
+    </select>
+
+    <select id="getCount" resultType="java.lang.Integer">
+        select count(*) from reviews
+        LEFT JOIN users on users.id = reviews.users_id
+        <include refid="where"/>
+    </select>
+
+
+    <select id="getStatus" resultType="com.situ.ws.bean.enums.ReviewsStatus">
+        select reviews.comment
+        from reviews where users_id = #{userId};
+    </select>
+
+    <select id="getById" resultType="com.situ.ws.bean.entries.Reviews">
+        select * from lease.reviews where `users_id` = #{userId}
+    </select>
+
+    <sql id="where">
+        <where>
+            reviews.is_del = 0 and users.is_del = 0
+            <if test="dto.username != null and dto.username !=''">
+                <bind name="likeUserName" value="'%' + dto.username + '%'"/>
+                and users.username like #{likeUserName}
+            </if>
+            <if test="dto.nickname != null and dto.nickname !=''">
+                <bind name="likeNickName" value="'%' + dto.nickname + '%'"/>
+                and users.nickname like #{likeNickName}
+            </if>
+            <if test="dto.phone != null and dto.phone !=''">
+                <bind name="likePhone" value="'%' + dto.phone + '%'"/>
+                and users.phone like #{likePhone}
+            </if>
+            <if test="dto.status != null">
+                and reviews.comment = #{dto.status}
+            </if>
+            <if test="dto.updateAt != null">
+                and reviews.update_at &gt;= #{dto.updateAt}
+            </if>
+        </where>
+    </sql>
+
+    <!--逻辑删除-->
+    <update id="logicalDeletion" parameterType="long">
+        update lease.reviews
+        set is_del = 1
+        where users_id in
+        <foreach collection="ids" item="id" open="(" close=")" separator=",">
+            #{id}
+        </foreach>
+        and `is_del` = 0
+    </update>
+
+    <!--    恢复数据-->
+<update id="restoreData" parameterType="long">
+    update lease.reviews
+    set is_del = 0
+    where users_id in
+    <foreach collection="ids" item="id" open="(" close=")" separator=",">
+        #{id}
+    </foreach>
+    and `is_del` = 1
+</update>
+
+    <!--    修改信誉记录-->
+    <update id="update" parameterType="com.situ.ws.bean.dto.ReviewsDto">
+        update lease.reviews
+        <set>
+            <if test="dto.rating != null">
+                `rating` = #{dto.rating},
+            </if>
+            <if test="dto.status != null">
+                `comment` = #{dto.status},
+            </if>
+            <if test="dto.updateAt != null">
+                `update_at` = NOW(),
+            </if>
+            <if test="dto.count != null">
+                `count` = #{dto.count},
+            </if>
+        </set>
+        <where>
+            id = #{dto.id} and is_del = 0
+        </where>
+    </update>
+
+
+    <update id="updateByCourse">
+        update reviews
+        <set>
+            <if test="reviews.rating != null">
+                `rating` = `rating` - #{reviews.rating}
+            </if>
+        </set>
+        where `users_id` = #{reviews.userId}
+        and `is_del` = 0
+    </update>
+
+    <!--    新增信誉-->
+    <insert id="insert" parameterType="com.situ.ws.bean.entries.Reviews">
+        insert into reviews (created_at, update_at, users_id)
+        values (#{reviews.createdAt},#{reviews.updatedAt},#{reviews.userId});
+    </insert>
+
+</mapper>

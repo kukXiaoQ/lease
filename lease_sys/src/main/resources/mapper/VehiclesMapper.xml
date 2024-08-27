@@ -1,0 +1,185 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.situ.ws.mapper.VehiclesMapper">
+
+    <!-- 通用查询映射结果 -->
+    <resultMap id="BaseResultMap" type="com.situ.ws.bean.entries.Vehicles">
+        <id column="id" property="id" />
+        <result column="plate_number" property="plateNumber" />
+        <result column="status" property="status" />
+        <result column="created_at" property="createdAt" />
+        <result column="updated_at" property="updatedAt" />
+        <result column="pre_lease_price" property="preLeasePrice" />
+        <result column="is_del" property="isDel"/>
+        <result column="url" property="url"/>
+        <result column="brand_id" property="brandId"/>
+    </resultMap>
+
+
+
+    <!--    新增车辆-->
+    <insert id="insert" parameterType="com.situ.ws.bean.entries.Vehicles">
+        insert into vehicles (plate_number, status, created_at, updated_at, pre_lease_price, brand_id,url)
+        values (#{vehicles.plateNumber},#{vehicles.status},#{vehicles.createdAt},#{vehicles.updatedAt},
+                #{vehicles.preLeasePrice},#{vehicles.brandId},#{vehicles.url});
+    </insert>
+
+
+    <!--    逻辑删除-->
+    <update id="logicalDeletion" parameterType="long">
+        update vehicles
+        set is_del = 1
+        where id in
+        <foreach collection="ids" item="id" open="(" close=")" separator=",">
+            #{id}
+        </foreach>
+        and `is_del` = 0
+    </update>
+
+    <!--    恢复数据-->
+    <update id="restoreData" parameterType="long">
+        update vehicles
+        set is_del = 0
+        where id in
+        <foreach collection="ids" item="id" open="(" close=")" separator=",">
+            #{id}
+        </foreach>
+        and `is_del` = 1
+    </update>
+
+    <!--    修改车辆记录-->
+    <update id="update" parameterType="com.situ.ws.bean.entries.Vehicles">
+        update vehicles
+        <set>
+            <if test="vehicles.plateNumber != null and vehicles.plateNumber != ''">
+                `plate_number` = #{vehicles.plateNumber},
+            </if>
+            <if test="vehicles.status != null">
+                `status` = #{vehicles.status},
+            </if>
+            <if test="vehicles.updatedAt != null">
+                `updated_at` = #{vehicles.updatedAt},
+            </if>
+            <if test="vehicles.preLeasePrice != null">
+                `pre_lease_price` = #{vehicles.preLeasePrice},
+            </if>
+            <if test="vehicles.url != null and vehicles.url != ''">
+                `url` = #{vehicles.url},
+            </if>
+        </set>
+        <where>
+            id = #{vehicles.id} and is_del = 0
+        </where>
+    </update>
+    <!--    真实删除  -->
+    <delete id="deleteByIds" parameterType="long">
+        delete from vehicles where
+        id in
+        <foreach collection="ids" item="id" open="(" close=")" separator=",">
+            #{id}
+        </foreach>
+    </delete>
+
+
+
+    <!--    分页查询，逻辑删除-->
+    <select id="selectPage" resultMap="BaseResultMap">
+        select *
+        from vehicles
+        <include refid="pageWhere"/>
+
+        <if test="page.start != null and page.start >= 0">
+            limit #{page.start},#{page.size}
+        </if>
+    </select>
+    <!--    总条数-->
+    <select id="getCount" resultType="int">
+        select count(*)
+        from vehicles
+        <include refid="pageWhere"/>
+    </select>
+
+<!--    根据品牌，查询所有可用的车辆-->
+    <select id="getVehiclesForNumber" resultMap="BaseResultMap">
+        select *
+        from vehicles where brand_id = #{id} and status = 'available'
+    </select>
+    <select id="getListForUserId" resultType="java.lang.Integer">
+        select rentals.order_id from rentals where rentals.order_id
+               in (select orders.id from orders where user_id = #{userId})
+                           and rentals.return_time is NULL;
+    </select>
+
+    <select id="getListByIds" resultMap="BaseResultMap">
+        select *
+        from vehicles
+        <where>
+            id in
+            <foreach collection="ids" item="id" open="(" close=")" separator=",">
+                #{id}
+            </foreach>
+        </where>
+    </select>
+
+
+    <resultMap id="getCountByMap" type="com.situ.ws.bean.entries.ReportForm">
+        <result column="count" property="count"/>
+        <result column="status" property="status"/>
+    </resultMap>
+
+    <select id="getCountByStatus" resultMap="getCountByMap">
+        select count(status) as count,vehicles.status
+        from vehicles group by status;
+    </select>
+
+
+    <resultMap id="ReportThreeMap" type="com.situ.ws.bean.dto.ReportThreeDto">
+        <result property="count" column="count"/>
+        <result property="name" column="name"/>
+    </resultMap>
+
+    <select id="getSalesChart" resultMap="ReportThreeMap">
+        select count(vehicles.brand_id) as count , brand.name
+        from vehicles
+                 left join brand on vehicles.brand_id = brand.id
+        where status != 'available' and vehicles.is_del = 0 group by brand_id limit 3
+    </select>
+
+
+    <select id="getCountByGroup" resultType="java.lang.Integer">
+        SELECT count(brand_id) from vehicles WHERE vehicles.brand_id in
+             <foreach collection="ids" item="id" open="(" close=")" separator=",">
+                 #{id}
+             </foreach>
+     GROUP BY vehicles.brand_id
+    </select>
+
+
+    <!--
+            分页查询的sql片段：
+               模糊查询
+                    根据用户id查询
+                    根据车辆id查询
+                    根据订单的创建，结束查询
+    -->
+    <sql id="pageWhere">
+        <where>
+            <if test="vehicles.isDel != null">
+                and `is_del` =  #{vehicles.isDel}
+            </if>
+            <if test="vehicles.plateNumber != null and vehicles.plateNumber != ''">
+                and `plate_number` =  #{vehicles.plateNumber}
+            </if>
+            <if test="vehicles.status != null">
+                and `status` =  #{vehicles.status}
+            </if>
+            <if test="vehicles.preLeasePrice != null and vehicles.preLeasePrice != ''">
+                and `pre_lease_price` between  #{vehicles.preLeasePrice} - 1000 and #{vehicles.preLeasePrice} + 1000
+            </if>
+            <if test="vehicles.brandId != null">
+                and `brand_id` =  #{vehicles.brandId}
+            </if>
+        </where>
+    </sql>
+
+</mapper>

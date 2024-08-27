@@ -1,0 +1,199 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.situ.ws.mapper.OrdersMapper">
+
+    <!-- 通用查询映射结果 -->
+    <resultMap id="BaseResultMap" type="com.situ.ws.bean.entries.Orders">
+        <id column="id" property="id" />
+        <result column="user_id" property="userId" />
+        <result column="vehicle_id" property="vehicleId" />
+        <result column="start_time" property="startTime" />
+        <result column="end_time" property="endTime" />
+        <result column="status" property="status" />
+        <result column="updated_at" property="updatedAt" />
+        <result column="is_del" property="isDel" />
+        <result column="actual_rental_price" property="actualRentalPrice" />
+        <result column="deposit" property="deposit" />
+    </resultMap>
+<!--    新增订单-->
+    <insert id="insert" parameterType="com.situ.ws.bean.entries.Orders" useGeneratedKeys="true" keyColumn="id" keyProperty="id">
+        insert into orders (id,user_id, vehicle_id, start_time, end_time, status, updated_at,actual_rental_price,deposit)
+        values (#{orders.id},#{orders.userId},#{orders.vehicleId},#{orders.startTime},#{orders.endTime},#{orders.status},#{orders.updatedAt},
+                #{orders.actualRentalPrice},#{orders.deposit});
+    </insert>
+
+
+    <!--    逻辑删除-->
+    <update id="logicalDeletion" parameterType="long">
+        update orders
+        set is_del = 1
+        where id in
+        <foreach collection="ids" item="id" open="(" close=")" separator=",">
+            #{id}
+        </foreach>
+        and `is_del` = 0
+    </update>
+
+    <!--    恢复数据-->
+    <update id="restoreData" parameterType="long">
+        update orders
+        set is_del = 0
+        where id in
+        <foreach collection="ids" item="id" open="(" close=")" separator=",">
+            #{id}
+        </foreach>
+        and `is_del` = 1
+    </update>
+
+<!--    修改订单记录-->
+    <update id="update" parameterType="com.situ.ws.bean.entries.Orders">
+        update orders
+        <set>
+            <if test="orders.status != null">
+                `status` = #{orders.status},
+            </if>
+            <if test="orders.startTime != null">
+                `start_time` = #{orders.startTime},
+            </if>
+            <if test="orders.endTime != null">
+                `end_time` = #{orders.endTime},
+            </if>
+            <if test="orders.updatedAt != null">
+                `updated_at` = #{orders.updatedAt},
+            </if>
+            <if test="orders.actualRentalPrice != null">
+                `actual_rental_price` = #{orders.actualRentalPrice},
+            </if>
+            <if test="orders.deposit != null">
+                `deposit` = #{orders.deposit},
+            </if>
+        </set>
+        <where>
+            id = #{orders.id} and is_del = 0
+        </where>
+    </update>
+    <!--    真实删除  -->
+    <delete id="deleteByIds" parameterType="long">
+        delete from orders where
+        id in
+           <foreach collection="ids" item="id" open="(" close=")" separator=",">
+                #{id}
+           </foreach>
+    </delete>
+
+
+
+<!--    分页查询，逻辑删除-->
+    <select id="selectPage" resultMap="BaseResultMap">
+        select *
+        from orders
+        <include refid="pageWhere"/>
+
+        <if test="page.start != null and page.start >= 0">
+            limit #{page.start},#{page.size}
+        </if>
+    </select>
+<!--    总条数-->
+    <select id="getCount" resultType="int">
+        select count(*) from orders
+        LEFT JOIN users on orders.user_id = users.id
+        LEFT JOIN vehicles on orders.vehicle_id = vehicles.id
+        <include refid="pageWhereNew"/>
+    </select>
+
+
+    <select id="getVehiclesIdListForIds" resultType="java.lang.Integer">
+        select `vehicle_id`
+        from orders
+        <where>
+            `id` in
+            <foreach collection="ids" item="id" close=")" open="(" separator=",">
+                #{id}
+            </foreach>
+        </where>
+    </select>
+
+
+    <resultMap id="getOrderDtoMap" type="com.situ.ws.bean.dto.OrderDto">
+        <result column="plate_number" property="plateNumber"/>
+        <result column="start_time" property="startTime"/>
+        <result column="updated_at" property="updatedAt"/>
+        <result column="end_time" property="endTime"/>
+        <result column="actual_rental_price" property="actualRentalPrice"/>
+    </resultMap>
+
+    <select id="selectPageByNewWhere" resultMap="getOrderDtoMap">
+        select orders.id,users.username,users.nickname,
+               users.phone,vehicles.plate_number,orders.`status`,orders.actual_rental_price,
+               orders.deposit,orders.start_time,orders.updated_at,orders.end_time from orders
+          LEFT JOIN users on orders.user_id = users.id
+          LEFT JOIN vehicles on orders.vehicle_id = vehicles.id
+        <include refid="pageWhereNew"/>
+        <if test="page.start != null and page.start >= 0">
+            limit #{page.start},#{page.size}
+        </if>
+    </select>
+
+    <sql id="pageWhereNew">
+        <where>
+            <if test="dto.isDel != null">
+                and orders.is_del =  #{dto.isDel}
+            </if>
+            <if test="dto.startTime != null">
+                and orders.start_time &gt;= #{dto.startTime}
+            </if>
+            <if test="dto.status !=null">
+                and orders.status = #{dto.status}
+            </if>
+            <if test="dto.username != null and dto.username !=''">
+                <bind name="likeUserName" value="'%' + dto.username + '%'"/>
+                and users.username like #{likeUserName}
+            </if>
+            <if test="dto.phone !=null and dto.phone !=''">
+                <bind name="likePhone" value="'%' + dto.phone + '%'"/>
+                and users.phone like #{likePhone}
+            </if>
+            <if test="dto.plateNumber !=null and dto.plateNumber != ''">
+                <bind name="likePlateNumber" value="'%' + dto.plateNumber + '%'"/>
+                and vehicles.plate_number like #{likePlateNumber}
+            </if>
+        </where>
+    </sql>
+
+
+    <!--
+            分页查询的sql片段：
+               模糊查询
+                    根据用户id查询
+                    根据车辆id查询
+                    根据订单的创建，结束查询
+    -->
+    <sql id="pageWhere">
+        <where>
+            <if test="orders.isDel != null">
+                and `is_del` =  #{orders.isDel}
+            </if>
+            <if test="orders.userId != null and orders.userId != ''">
+                <bind name="likeUserId" value="'%' + orders.userId + '%'"/>
+                and `user_id` like #{likeUserId}
+            </if>
+
+            <if test="orders.vehicleId != null and orders.vehicleId != ''">
+                <bind name="likeVehicleId" value="'%' + orders.vehicleId + '%'"/>
+                and `vehicle_id` like #{likeVehicleId}
+            </if>
+
+            <if test="orders.startTime != null">
+                and `start_time` &gt;= #{orders.startTime}
+            </if>
+
+            <if test="orders.endTime != null">
+                and `end_time` &lt;= #{orders.endTime}
+            </if>
+            <if test="orders.status !=null">
+                and `status` = #{orders.status}
+            </if>
+        </where>
+    </sql>
+
+</mapper>

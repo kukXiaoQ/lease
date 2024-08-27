@@ -1,0 +1,155 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.situ.ws.mapper.PaymentsMapper">
+
+    <!-- 通用查询映射结果 -->
+    <resultMap id="BaseResultMap" type="com.situ.ws.bean.entries.Payments">
+        <id column="id" property="id" />
+        <result column="order_id" property="orderId" />
+        <result column="amount" property="amount" />
+        <result column="payment_method" property="paymentMethod" />
+        <result column="status" property="status" />
+        <result column="created_at" property="createdAt" />
+        <result column="updated_at" property="updatedAt" />
+        <result column="is_del" property="isDel"/>
+    </resultMap>
+
+<!--    插入支付记录-->
+    <insert id="insert">
+        insert into payments (order_id, amount, payment_method, status, created_at, updated_at)
+        values (#{payments.orderId},#{payments.amount},#{payments.paymentMethod},#{payments.status},#{payments.createdAt},#{payments.updatedAt});
+    </insert>
+
+<!--    逻辑删除-->
+    <update id="logicalDeletion" parameterType="long">
+        update payments
+        set is_del = 1
+        where id in
+        <foreach collection="ids" item="id" open="(" close=")" separator=",">
+            #{id}
+        </foreach>
+        and `is_del` = 0
+    </update>
+
+<!--    修改支付信息-->
+    <update id="update" parameterType="com.situ.ws.bean.entries.Payments">
+        update payments
+        <set>
+            <if test="payments.status != null">
+                `status` = #{payments.status},
+            </if>
+            <if test="payments.amount != null">
+                `amount` = #{payments.amount},
+            </if>
+            <if test="payments.paymentMethod != null">
+                `payment_method` = #{payments.paymentMethod},
+            </if>
+            <if test="payments.createdAt != null">
+                `created_at` = #{payments.createdAt},
+            </if>
+            <if test="payments.updatedAt != null">
+                `updated_at` = #{payments.updatedAt},
+            </if>
+        </set>
+        <where>
+            id = #{payments.id} and is_del = 0
+        </where>
+    </update>
+
+
+
+<!--    恢复-->
+    <update id="restoreData" parameterType="long">
+        update payments
+        set is_del = 0
+        where id in
+        <foreach collection="ids" item="id" open="(" close=")" separator=",">
+            #{id}
+        </foreach>
+        and `is_del` = 1
+    </update>
+
+<!--    真删除-->
+    <delete id="deleteByIds" parameterType="long">
+        delete from orders where
+        id in
+        <foreach collection="ids" item="id" open="(" close=")" separator=",">
+            #{id}
+        </foreach>
+    </delete>
+
+    <!--    分页查询-->
+    <select id="selectPage" resultMap="BaseResultMap">
+        select *
+        from payments
+        <include refid="pageWhere"/>
+        <if test="page.start != null and page.start >= 0">
+            limit #{page.start},#{page.size}
+        </if>
+    </select>
+
+
+    <!--    总条数-->
+    <select id="getCount" resultType="int">
+        select count(*)
+        from payments
+        <include refid="pageWhere"/>
+    </select>
+
+    <resultMap id="AmountForSeasonMap" type="com.situ.ws.bean.dto.ReportTwoDto">
+        <result column="spring" property="spring"/>
+        <result column="summer" property="summer"/>
+        <result column="autumn" property="autumn"/>
+        <result column="winter" property="winter"/>
+    </resultMap>
+
+    <select id="getAmountForSeason" resultMap="AmountForSeasonMap">
+        SELECT
+            ROUND(SUM(IF(created_at BETWEEN CONCAT(YEAR(NOW()), '-01-01') AND CONCAT(YEAR(NOW()), '-04-01'), amount, 0)) / 10000, 2) AS spring,
+            ROUND(SUM(IF(created_at BETWEEN CONCAT(YEAR(NOW()), '-04-02') AND CONCAT(YEAR(NOW()), '-06-01'), amount, 0)) / 10000, 2) AS summer,
+            ROUND(SUM(IF(created_at BETWEEN CONCAT(YEAR(NOW()), '-06-02') AND CONCAT(YEAR(NOW()), '-09-02'), amount, 0)) / 10000, 2) AS autumn,
+            ROUND(SUM(IF(created_at BETWEEN CONCAT(YEAR(NOW()), '-09-02') AND CONCAT(YEAR(NOW()) + 1, '-01-01'), amount, 0)) / 10000, 2) AS winter
+        FROM payments;
+    </select>
+
+
+    <select id="getPayCount" resultType="java.lang.Integer">
+        select count(*)
+        from payments where created_at = #{localDate} and is_del = 0 and status = 'completed';
+    </select>
+
+
+    <!--
+        分页查询的sql片段：
+           模糊查询
+                根据用户id查询
+                根据车辆id查询
+                根据订单的创建，结束查询
+-->
+    <sql id="pageWhere">
+        <where>
+            <if test="payments.isDel != null">
+                `is_del` = #{payments.isDel}
+            </if>
+            <if test="payments.orderId != null and payments.orderId != ''">
+                <bind name="likeOrderId" value="'%' + payments.orderId + '%'"/>
+                and `order_id` like #{likeOrderId}
+            </if>
+            <if test="payments.paymentMethod != null">
+                and `payment_method` = #{payments.paymentMethod}
+            </if>
+            <if test="payments.status != null">
+                and `status` = #{payments.status}
+            </if>
+
+            <if test="payments.createdAt != null">
+                and `created_at` &gt;= #{payments.createdAt}
+            </if>
+
+            <if test="payments.updatedAt != null">
+                and `updated_at` &lt;= #{payments.updatedAt}
+            </if>
+        </where>
+    </sql>
+
+</mapper>

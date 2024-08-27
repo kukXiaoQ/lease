@@ -1,0 +1,176 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.situ.ws.mapper.UsersMapper">
+
+    <!-- 通用查询映射结果 -->
+    <resultMap id="BaseResultMap" type="com.situ.ws.bean.entries.Users">
+        <id column="id" property="id" />
+        <result column="username" property="username" />
+        <result column="password" property="password" />
+        <result column="email" property="email" />
+        <result column="phone" property="phone" />
+        <result column="created_at" property="createdAt" />
+        <result column="updated_at" property="updatedAt" />
+        <result column="is_del" property="isDel" />
+        <result column="url" property="url"/>
+        <result column="nickname" property="nickname"/>
+    </resultMap>
+
+    <insert id="insert" parameterType="com.situ.ws.bean.entries.Users">
+        insert into users (username,password,email,phone,created_at,updated_at,url,nickname)
+        values (#{users.username},#{users.password},#{users.email},#{users.phone},
+                #{users.createdAt},#{users.updatedAt},#{users.url},#{users.nickname});
+    </insert>
+
+
+
+    <select id="getUserByPhone" resultMap="BaseResultMap">
+        select *
+        from users
+        <where>
+            is_del = 0
+            <choose>
+                <when test="users.phone != null and users.phone != ''">
+                    and phone = #{users.phone}
+                </when>
+            </choose>
+        <if test="users.email != null and users.email != ''">
+            and `email` = #{users.email}
+        </if>
+        <if test="users.id != null">
+            and `id` = #{users.id}
+        </if>
+        </where>
+    </select>
+
+
+    <!--    逻辑删除-->
+    <update id="logicalDeletion" parameterType="long">
+        update users
+        set is_del = 1
+        where id in
+        <foreach collection="ids" item="id" open="(" close=")" separator=",">
+            #{id}
+        </foreach>
+        and `is_del` = 0
+    </update>
+
+
+
+    <!--    修改用户记录-->
+    <update id="update" parameterType="com.situ.ws.bean.entries.Users">
+        update users
+        <set>
+            <if test="users.username != null and users.username != ''">
+                `username` = #{users.username},
+            </if>
+            <if test="users.nickname != null and users.nickname != ''">
+                `nickname` = #{users.nickname},
+            </if>
+            <if test="users.email != null and users.email != ''">
+                `email` = #{users.email},
+            </if>
+            <if test="users.phone != null">
+                `phone` = #{users.phone},
+            </if>
+            <if test="users.createdAt != null">
+                `created_at` = #{users.createdAt},
+            </if>
+            <if test="users.updatedAt != null">
+                `updated_at` = #{users.updatedAt},
+            </if>
+            <if test="users.url != null and users.url != ''">
+                `url` = #{users.url}
+            </if>
+        </set>
+        <where>
+            id = #{users.id} and is_del = 0
+        </where>
+    </update>
+
+
+    <update id="restoreData" parameterType="long">
+        update users
+        set is_del = 0
+        where id in
+        <foreach collection="ids" item="id" open="(" close=")" separator=",">
+            #{id}
+        </foreach>
+        and `is_del` = 1
+    </update>
+
+    <update id="updatePass">
+        update users
+        set `password` = #{user.password}
+        where `id` = #{user.id};
+    </update>
+
+    <!--    真实删除  -->
+    <delete id="deleteByIds" parameterType="long">
+        delete from users where
+        id in
+        <foreach collection="ids" item="id" open="(" close=")" separator=",">
+            #{id}
+        </foreach>
+    </delete>
+
+
+
+    <select id="getCount" resultType="int">
+        select count(*)
+        from users
+        <include refid="pageWhere"/>
+    </select>
+
+    <select id="selectPage" resultMap="BaseResultMap">
+        select *
+        from users
+        <include refid="pageWhere"/>
+
+        <if test="page.start != null and page.start >= 0">
+            limit #{page.start},#{page.size}
+        </if>
+    </select>
+
+
+    <select id="selectOne" resultMap="BaseResultMap">
+        select id,username,nickname,email,phone,created_at,updated_at,url,nickname,is_del from users
+        <where>
+            <if test="users.phone != null and users.phone != ''">
+                `phone` = #{users.phone}
+            </if>
+            <if test="users.email != null and users.email != ''">
+                `email` = #{users.email}
+            </if>
+        </where>
+    </select>
+
+    <sql id="pageWhere">
+        <where>
+            <if test="users.isDel != null">
+                and `is_del` =  #{users.isDel}
+            </if>
+            <if test="users.username != null and users.username != ''">
+                <bind name="likeUserName" value="'%' + users.username + '%'"/>
+                and `username` like #{likeUserName}
+            </if>
+
+            <if test="users.email != null and users.email != ''">
+                <bind name="likeUserEmail" value="'%' + users.email + '%'"/>
+                and `email` like #{likeUserEmail}
+            </if>
+
+            <if test="users.phone != null and users.phone != ''">
+                <bind name="likePhone" value="'%' + users.phone + '%'"/>
+                and `phone` like #{likePhone}
+            </if>
+            <if test="users.createdAt != null">
+                and `created_at` &gt;= #{users.createdAt}
+            </if>
+            <if test="users.updatedAt != null">
+                and `updated_at` &lt;= #{users.updatedAt}
+            </if>
+        </where>
+    </sql>
+
+</mapper>

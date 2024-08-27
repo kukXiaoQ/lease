@@ -1,0 +1,37 @@
+server:
+  port: 80
+spring:
+  mail:
+    host: smtp.qq.com
+    username: 2542356211@qq.com
+    password: qhnbjqoejmjfebec
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql:///lease?useSSL=false
+    username: "root"
+    password: "1234"
+  redis:
+    host: localhost
+    port: 6379
+mybatis:
+  mapper-locations: classpath:mapper/*.xml
+#  同时引入mybatis、mybatis-plus时会导致日志失效
+  configuration:
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+email:
+  from: 2542356211@qq.com
+#  to: 2138549461@qq.com
+  to: 2152288649@qq.com
+  subject: 手机号登录、注册
+  context_prefix: "<h4>您正在申请手机登陆，租赁车管app，验证码为：<i><u>"
+  context_suffix: "</u></i>，</h4>
+  <h4>当前验证码的有效时间为2分钟！</h4>
+  <h4>如非本人操作，请忽略本短信请勿泄露于他人！</h4>
+  <h4>感谢您的支持！</h4>"
+captcha:
+  height: 100
+  width: 200
+  session:
+    key: CAPTCHA_SESSION_KEY
+    date: CAPTCHA_SESSION_DATE
+

@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.situ.ws.mapper.SystemLogsMapper">
+
+    <!-- 通用查询映射结果 -->
+    <resultMap id="BaseResultMap" type="com.situ.ws.bean.entries.SystemLogs">
+        <id column="id" property="id" />
+        <result column="user_id" property="userId" />
+        <result column="action" property="action" />
+        <result column="details" property="details" />
+        <result column="created_at" property="createdAt" />
+        <result column="is_del" property="isDel" />
+    </resultMap>
+
+
+    <insert id="insert">
+        insert into system_logs (user_id, action, details, created_at)
+        values (#{logs.userId},#{logs.action},#{logs.details},#{logs.createdAt});
+    </insert>
+
+
+    <!--    逻辑删除-->
+    <update id="logicalDeletion" parameterType="long">
+        update system_logs
+        set is_del = 1
+        where id in
+        <foreach collection="ids" item="id" open="(" close=")" separator=",">
+            #{id}
+        </foreach>
+        and `is_del` = 0
+    </update>
+
+
+    <resultMap id="LogDtoMap" type="com.situ.ws.bean.dto.LogDto">
+        <result property="createdAt" column="created_at"/>
+        <result property="username" column="username"/>
+    </resultMap>
+
+    <select id="selectPageByNewWhere" resultMap="LogDtoMap">
+        SELECT users.username,users.phone,system_logs.* from system_logs
+         LEFT JOIN users on users.id = system_logs.user_id
+        <include refid="where"/>
+        <if test="page.start != null and page.start >= 0">
+            limit #{page.start},#{page.size}
+        </if>
+    </select>
+
+
+    <select id="getCount" resultType="java.lang.Integer">
+        SELECT count(*) from system_logs
+        LEFT JOIN users on users.id = system_logs.user_id
+        <include refid="where"/>
+    </select>
+
+
+    <sql id="where">
+        <where>
+            system_logs.is_del = 0
+            <if test="dto.username != null and dto.username !='' ">
+                <bind name="likeUserName" value="'%' + dto.username + '%'"/>
+                And users.username like #{likeUserName}
+            </if>
+            <if test="dto.phone != null and dto.phone !='' ">
+                <bind name="likePhone" value="'%' + dto.phone + '%'"/>
+                And users.phone like #{likePhone}
+            </if>
+            <if test="dto.action != null and dto.action !='' ">
+                <bind name="likeAction" value="'%' + dto.action + '%'"/>
+                And system_logs.action like #{likeAction}
+            </if>
+            <if test="dto.localDate != null">
+                And system_logs.created_at &gt;= #{dto.localDate}
+            </if>
+        </where>
+    </sql>
+
+</mapper>
